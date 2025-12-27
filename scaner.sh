@@ -9,11 +9,11 @@ MAGENTA='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+PARANOIDAL=0
 SCAN_DIR="${1:-.}"
 RESULTS_FILE="scan_results.txt"
 BASE64_DECODE_FILE="base64_decoded.txt"
 VIRUS_PATTERNS_FILE="virus_patterns.txt"
-AIBOLIT_PATTERNS_FILE="aibolit_patterns.txt"
 
 echo -e "${GREEN}=== ADVANCED MALWARE SCAN WITH AI-BOLIT PATTERNS ===${NC}"
 echo "Scanning directory: $SCAN_DIR"
@@ -189,17 +189,31 @@ echo -e "${BLUE}[1/9] Scanning for Base64 in non-certificate files...${NC}"
 echo "=== BASE64 IN NON-CERTIFICATE FILES ===" >> "$RESULTS_FILE"
 echo "" >> "$RESULTS_FILE"
 
-find "$SCAN_DIR" -type f \
-  ! -name "*.crt" ! -name "*.pem" ! -name "*.cer" ! -name "*.key" \
-  ! -name "*.p12" ! -name "*.pfx" ! -name "*.p7b" ! -name "*.p7c" \
-  ! -name "*.der" ! -name "*.csr" ! -name "*.jks" ! -name "*.keystore" \
-  ! -name "*.jpg" ! -name "*.jpeg" ! -name "*.png" ! -name "*.gif" \
-  ! -name "*.bmp" ! -name "*.ico" ! -name "*.svg" ! -name "*.webp" \
-  ! -name "*.woff" ! -name "*.woff2" ! -name "*.ttf" ! -name "*.eot" ! -name "*.otf" \
-  ! -name "*.pdf" ! -name "*.zip" ! -name "*.tar" ! -name "*.gz" \
-  ! -name "*.mp4" ! -name "*.mp3" ! -name "*.avi" ! -name "*.mov" \
-  ! -name "*.doc" ! -name "*.docx" ! -name "*.xls" ! -name "*.xlsx" \
-  -exec grep -l -E '[A-Za-z0-9+/]{60,}={0,2}' {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+if [ "$PARANOIDAL" -eq 1 ]; then
+  EXCLUDES='
+    ! -name "*.crt" ! -name "*.pem" ! -name "*.cer" ! -name "*.key"
+    ! -name "*.p12" ! -name "*.pfx"
+    ! -name "*.p7b" ! -name "*.p7c" ! -name "*.p7s" ! -name "*.p7m"
+    ! -name "*.der" ! -name "*.csr"
+  '
+else
+  EXCLUDES='
+    ! -name "*.crt" ! -name "*.pem" ! -name "*.cer" ! -name "*.key"
+    ! -name "*.p12" ! -name "*.pfx" ! -name "*.p7b" ! -name "*.p7c" ! -name "*.p7s" ! -name "*.p7m"
+    ! -name "*.der" ! -name "*.csr" ! -name "*.jks" ! -name "*.keystore"
+    ! -name "*.jpg" ! -name "*.jpeg" ! -name "*.png" ! -name "*.gif"
+    ! -name "*.bmp" ! -name "*.ico" ! -name "*.svg" ! -name "*.webp"
+    ! -name "*.woff" ! -name "*.woff2" ! -name "*.ttf" ! -name "*.eot" ! -name "*.otf"
+    ! -name "*.pdf" ! -name "*.zip" ! -name "*.tar" ! -name "*.gz"
+    ! -name "*.mp4" ! -name "*.mp3" ! -name "*.avi" ! -name "*.mov"
+    ! -name "*.doc" ! -name "*.docx" ! -name "*.xls" ! -name "*.xlsx"
+    ! -name "*.eml"
+  '
+fi
+
+eval find "\"$SCAN_DIR\"" -type f $EXCLUDES \
+  -exec grep -l -E '[A-Za-z0-9+/]{60,}={0,2}' {} \; 2>/dev/null \
+  | sort -u >> "$RESULTS_FILE"
 
 echo "" >> "$RESULTS_FILE"
 echo "" >> "$RESULTS_FILE"
@@ -296,80 +310,6 @@ echo "" >> "$RESULTS_FILE"
 echo "" >> "$RESULTS_FILE"
 
 # ==========================================
-# 7. AI-BOLIT: Critical patterns
-# ==========================================
-echo -e "${BLUE}[7/9] Checking AI-Bolit CRITICAL patterns...${NC}"
-echo "=== AI-BOLIT CRITICAL PATTERNS ===" >> "$AIBOLIT_PATTERNS_FILE"
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-
-critical_count=0
-find "$SCAN_DIR" -type f -name "*.php" 2>/dev/null | while read -r phpfile; do
-  for pattern in "${CRITICAL_PATTERNS[@]}"; do
-    if check_pattern "$phpfile" "$pattern" "CRITICAL"; then
-      ((critical_count++))
-    fi
-  done
-done
-
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-
-# ==========================================
-# 8. AI-BOLIT: Suspicious patterns
-# ==========================================
-echo -e "${BLUE}[8/9] Checking AI-Bolit SUSPICIOUS patterns...${NC}"
-echo "=== AI-BOLIT SUSPICIOUS PATTERNS ===" >> "$AIBOLIT_PATTERNS_FILE"
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-
-suspicious_count=0
-find "$SCAN_DIR" -type f -name "*.php" 2>/dev/null | while read -r phpfile; do
-  for pattern in "${SUSPICIOUS_PATTERNS[@]}"; do
-    if check_pattern "$phpfile" "$pattern" "SUSPICIOUS"; then
-      ((suspicious_count++))
-    fi
-  done
-done
-
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-
-# ==========================================
-# AI-BOLIT: Backdoor signatures
-# ==========================================
-echo "=== AI-BOLIT BACKDOOR SIGNATURES ===" >> "$AIBOLIT_PATTERNS_FILE"
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-
-backdoor_count=0
-find "$SCAN_DIR" -type f -name "*.php" 2>/dev/null | while read -r phpfile; do
-  for pattern in "${BACKDOOR_SIGNATURES[@]}"; do
-    if check_pattern "$phpfile" "$pattern" "BACKDOOR"; then
-      ((backdoor_count++))
-    fi
-  done
-done
-
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-
-# ==========================================
-# AI-BOLIT: Obfuscation
-# ==========================================
-echo "=== AI-BOLIT OBFUSCATION PATTERNS ===" >> "$AIBOLIT_PATTERNS_FILE"
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-
-obfuscation_count=0
-find "$SCAN_DIR" -type f -name "*.php" 2>/dev/null | while read -r phpfile; do
-  for pattern in "${OBFUSCATION_PATTERNS[@]}"; do
-    if check_pattern "$phpfile" "$pattern" "OBFUSCATION"; then
-      ((obfuscation_count++))
-    fi
-  done
-done
-
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-echo "" >> "$AIBOLIT_PATTERNS_FILE"
-
-# ==========================================
 # 9. Decode Base64 and check for virus patterns
 # ==========================================
 echo -e "${BLUE}[9/9] Decoding Base64 and checking for virus patterns...${NC}"
@@ -434,6 +374,305 @@ find "$SCAN_DIR" -type f -name "*.php" -exec grep -l "base64_decode" {} \; 2>/de
   echo "" >> "$BASE64_DECODE_FILE"
   echo "" >> "$BASE64_DECODE_FILE"
 done
+# ==========================================
+# 10. PHP Code Injection Patterns
+# ==========================================
+echo -e "${BLUE}[10/25] Scanning for PHP code injection patterns...${NC}"
+echo "=== PHP CODE INJECTION PATTERNS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.php" -exec grep -l -E "\\\$\\\$|variable variables|eval.*\\\$_(GET|POST|REQUEST)|assert.*\\\$_|preg_replace.*\\\$_" {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 11. Suspicious File Permissions (777, writable)
+# ==========================================
+echo -e "${BLUE}[11/25] Checking suspicious file permissions...${NC}"
+echo "=== SUSPICIOUS FILE PERMISSIONS (777/666) ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f \( -perm -0777 -o -perm -0666 \) ! -name "*.log" 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 12. Recently Modified Files (last 7 days)
+# ==========================================
+echo -e "${BLUE}[12/25] Finding recently modified files...${NC}"
+echo "=== RECENTLY MODIFIED FILES (LAST 7 DAYS) ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.php" -mtime -7 -exec ls -lh {} \; 2>/dev/null | sort -k6,7 >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 13. Suspicious File Names (random strings)
+# ==========================================
+echo -e "${BLUE}[13/25] Detecting suspicious random filenames...${NC}"
+echo "=== SUSPICIOUS RANDOM FILENAMES ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.php" | grep -E "[a-f0-9]{32}|[A-Za-z0-9]{8,12}\\.php\$|^[0-9]+\\.php\$" | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 14. PHP Files in Upload Directories
+# ==========================================
+echo -e "${BLUE}[14/25] Scanning upload directories for PHP files...${NC}"
+echo "=== PHP FILES IN UPLOAD DIRECTORIES ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type d -name "*upload*" -o -name "*cache*" -o -name "*temp*" -o -name "*tmp*" 2>/dev/null | while read -r dir; do
+  find "$dir" -type f -name "*.php" 2>/dev/null
+done | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 15. Hidden Files and Directories
+# ==========================================
+echo -e "${BLUE}[15/25] Finding hidden files and directories...${NC}"
+echo "=== HIDDEN FILES AND DIRECTORIES ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -name ".*" -type f -o -name ".*" -type d 2>/dev/null | grep -v "^\\.git\|^\\.svn\|^\\.htaccess" | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 16. Suspicious SQL Queries in Files
+# ==========================================
+echo -e "${BLUE}[16/25] Detecting SQL injection patterns...${NC}"
+echo "=== SQL INJECTION PATTERNS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.php" -exec grep -l -E "mysql_query.*\\\$_(GET|POST|REQUEST)|mysqli.*\\\$_(GET|POST)|UNION.*SELECT|DROP.*TABLE|exec\(.*SELECT" {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 17. Mailer Scripts (spam potential)
+# ==========================================
+echo -e "${BLUE}[17/25] Finding potential mailer scripts...${NC}"
+echo "=== POTENTIAL MAILER/SPAM SCRIPTS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.php" -exec grep -l -E "mail\s*\(.*\\\$_(GET|POST|REQUEST)|@mail|PHPMailer|smtp|sendmail.*\\\$_" {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 18. File Upload Functions
+# ==========================================
+echo -e "${BLUE}[18/25] Detecting file upload handlers...${NC}"
+echo "=== FILE UPLOAD HANDLERS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.php" -exec grep -l -E "move_uploaded_file|copy\s*\(\s*\\\$_FILES|file_put_contents.*\\\$_FILES|\\\$_FILES\[.*\]\[.tmp_name.\]" {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 19. Cryptocurrency Miners
+# ==========================================
+echo -e "${BLUE}[19/25] Scanning for cryptocurrency miners...${NC}"
+echo "=== CRYPTOCURRENCY MINERS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f \( -name "*.php" -o -name "*.js" \) -exec grep -l -E "coinhive|crypto-loot|jsecoin|minero|webminer|cryptonight|stratum\+tcp|xmrig|monero" {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 20. Suspicious JavaScript
+# ==========================================
+echo -e "${BLUE}[20/25] Checking suspicious JavaScript patterns...${NC}"
+echo "=== SUSPICIOUS JAVASCRIPT ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.js" -exec grep -l -E "eval\(|document\.write\(.*unescape|atob\(|String\.fromCharCode|iframe.*src" {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 21. Encoded/Packed JavaScript
+# ==========================================
+echo -e "${BLUE}[21/25] Finding packed/obfuscated JavaScript...${NC}"
+echo "=== PACKED/OBFUSCATED JAVASCRIPT ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.js" -exec grep -l -E "eval\(function\(p,a,c,k,e|JScrambler|_0x[a-f0-9]{4}" {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 22. SEO Spam Patterns
+# ==========================================
+echo -e "${BLUE}[22/25] Detecting SEO spam patterns...${NC}"
+echo "=== SEO SPAM PATTERNS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f \( -name "*.php" -o -name "*.html" \) -exec grep -l -E "viagra|cialis|casino|porn|sex|gambling|lottery|replica|rolex" {} \; 2>/dev/null | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 23. Suspicious Cron Jobs
+# ==========================================
+echo -e "${BLUE}[23/25] Checking for suspicious cron jobs...${NC}"
+echo "=== SUSPICIOUS CRON JOBS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+if [ -f "/etc/crontab" ]; then
+  grep -E "curl|wget|php|perl|python" /etc/crontab 2>/dev/null >> "$RESULTS_FILE"
+fi
+
+for cronfile in /etc/cron.d/* /var/spool/cron/* /var/spool/cron/crontabs/* 2>/dev/null; do
+  if [ -f "$cronfile" ]; then
+    echo "--- $cronfile ---" >> "$RESULTS_FILE"
+    grep -E "curl|wget|php|perl|python" "$cronfile" 2>/dev/null >> "$RESULTS_FILE"
+    echo "" >> "$RESULTS_FILE"
+  fi
+done
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 24. Suspicious Network Connections
+# ==========================================
+echo -e "${BLUE}[24/25] Analyzing active network connections...${NC}"
+echo "=== SUSPICIOUS NETWORK CONNECTIONS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+if command -v netstat &> /dev/null; then
+  netstat -antp 2>/dev/null | grep -E "ESTABLISHED|LISTEN" | grep -vE ":80|:443|:22|:25|:3306" >> "$RESULTS_FILE"
+elif command -v ss &> /dev/null; then
+  ss -antp 2>/dev/null | grep -E "ESTAB|LISTEN" | grep -vE ":80|:443|:22|:25|:3306" >> "$RESULTS_FILE"
+fi
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 25. Suspicious Running Processes
+# ==========================================
+echo -e "${BLUE}[25/25] Checking suspicious running processes...${NC}"
+echo "=== SUSPICIOUS RUNNING PROCESSES ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+ps aux | grep -E "nc -l|ncat|socat|perl.*socket|python.*socket|php.*socket|/tmp/|/dev/shm/" | grep -v grep >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 26. Database Credentials in Files
+# ==========================================
+echo -e "${BLUE}[26/30] Finding database credentials...${NC}"
+echo "=== DATABASE CREDENTIALS IN FILES ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f \( -name "*.php" -o -name "*.conf" -o -name "*.config" \) -exec grep -H -E "DB_PASSWORD|DB_USER|mysql_connect|mysqli_connect|PDO.*mysql" {} \; 2>/dev/null | head -50 >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 27. Hardcoded Passwords
+# ==========================================
+echo -e "${BLUE}[27/30] Scanning for hardcoded passwords...${NC}"
+echo "=== HARDCODED PASSWORDS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -name "*.php" -exec grep -H -E "password\s*=\s*['\"][^'\"]{6,}['\"]|passwd\s*=|pwd\s*=" {} \; 2>/dev/null | head -50 >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 28. Writable System Directories
+# ==========================================
+echo -e "${BLUE}[28/30] Checking writable system directories...${NC}"
+echo "=== WRITABLE DIRECTORIES ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type d -writable 2>/dev/null | grep -vE "cache|log|tmp|temp|session" | sort -u >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 29. Large Files (potential data exfiltration)
+# ==========================================
+echo -e "${BLUE}[29/30] Finding suspiciously large files...${NC}"
+echo "=== LARGE FILES (>10MB) ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+find "$SCAN_DIR" -type f -size +10M ! -name "*.zip" ! -name "*.tar.gz" ! -name "*.mp4" ! -name "*.avi" -exec ls -lh {} \; 2>/dev/null | sort -k5 -h -r | head -20 >> "$RESULTS_FILE"
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+# ==========================================
+# 30. WordPress Specific Checks
+# ==========================================
+echo -e "${BLUE}[30/30] WordPress specific security checks...${NC}"
+echo "=== WORDPRESS SPECIFIC CHECKS ===" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
+
+if [ -f "$SCAN_DIR/wp-config.php" ]; then
+  echo "[+] WordPress installation detected" >> "$RESULTS_FILE"
+  echo "" >> "$RESULTS_FILE"
+  
+  # Check for suspicious wp-admin files
+  echo "--- Suspicious wp-admin files ---" >> "$RESULTS_FILE"
+  find "$SCAN_DIR/wp-admin" -type f -name "*.php" ! -name "admin*.php" ! -name "index.php" ! -name "load-*.php" 2>/dev/null >> "$RESULTS_FILE"
+  echo "" >> "$RESULTS_FILE"
+  
+  # Check for suspicious plugins
+  echo "--- Suspicious plugin names ---" >> "$RESULTS_FILE"
+  find "$SCAN_DIR/wp-content/plugins" -maxdepth 1 -type d | grep -E "[a-f0-9]{8,}|plugin[0-9]+|\-tmp\-|\-backup" >> "$RESULTS_FILE"
+  echo "" >> "$RESULTS_FILE"
+  
+  # Check for suspicious themes
+  echo "--- Suspicious theme names ---" >> "$RESULTS_FILE"
+  find "$SCAN_DIR/wp-content/themes" -maxdepth 1 -type d | grep -E "[a-f0-9]{8,}|theme[0-9]+|\-tmp\-|\-backup" >> "$RESULTS_FILE"
+  echo "" >> "$RESULTS_FILE"
+  
+  # Check wp-config.php for suspicious code
+  echo "--- wp-config.php suspicious patterns ---" >> "$RESULTS_FILE"
+  grep -E "eval|base64_decode|gzinflate|exec|system" "$SCAN_DIR/wp-config.php" 2>/dev/null >> "$RESULTS_FILE"
+  echo "" >> "$RESULTS_FILE"
+  
+  # Check for wp-users with suspicious privileges
+  if command -v mysql &> /dev/null || command -v mysqldump &> /dev/null; then
+    echo "--- Database check (requires credentials) ---" >> "$RESULTS_FILE"
+    echo "Manual check recommended: SELECT * FROM wp_users WHERE user_login NOT IN ('admin');" >> "$RESULTS_FILE"
+  fi
+  
+else
+  echo "[-] No WordPress installation detected" >> "$RESULTS_FILE"
+fi
+
+echo "" >> "$RESULTS_FILE"
+echo "" >> "$RESULTS_FILE"
 
 # ==========================================
 # Summary
@@ -474,7 +713,6 @@ if [ "$total_threats" -gt 0 ]; then
   echo -e "${RED}========================================${NC}"
   echo ""
   echo "Priority actions:"
-  echo "1. Check $AIBOLIT_PATTERNS_FILE for AI-Bolit detections"
   echo "2. Check $VIRUS_PATTERNS_FILE for decoded malware"
   echo "3. Review files in $RESULTS_FILE"
 else
