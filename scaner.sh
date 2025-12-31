@@ -15,7 +15,7 @@ RESULTS_FILE="scan_results.txt"
 BASE64_DECODE_FILE="base64_decoded.txt"
 VIRUS_PATTERNS_FILE="virus_patterns.txt"
 
-echo -e "${GREEN}=== ADVANCED MALWARE SCAN WITH AI-BOLIT PATTERNS ===${NC}"
+echo -e "${GREEN}=== ADVANCED MALWARE SCAN ===${NC}"
 echo "Scanning directory: $SCAN_DIR"
 echo "Results will be saved to multiple files"
 echo ""
