@@ -27,7 +27,7 @@ echo ""
 > "$AIBOLIT_PATTERNS_FILE"
 
 # ==========================================
-# AI-BOLIT PATTERNS (from real AI-Bolit)
+# PATTERNS
 # ==========================================
 
 # Critical patterns (100% malware)
